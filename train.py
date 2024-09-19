@@ -22,9 +22,7 @@ def get_args_parser():
     parser = argparse.ArgumentParser('Set transformer detector', add_help=False)
     parser.add_argument('--lr', default=1e-4, type=float)
     parser.add_argument('--lr_bert', default=1e-6, type=float)
-    parser.add_argument('--lr_visu_cnn', default=0, type=float)
-    # parser.add_argument('--lr_visu_tra', default=1e-6, type=float)
-    parser.add_argument('--lr_clip', default=0, type=float)
+    parser.add_argument('--lr_visu_cnn', default=1e-6, type=float)
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--weight_decay', default=1e-4, type=float)
     parser.add_argument('--epochs', default=90, type=int)
@@ -34,16 +32,12 @@ def get_args_parser():
     parser.add_argument('--eval', dest='eval', default=False, action='store_true', help='if evaluation only')
     parser.add_argument('--optimizer', default='adamw', type=str)
     parser.add_argument('--lr_scheduler', default='cosine', type=str)
-    parser.add_argument('--lr_drop', default=[60, 80], type=int)
-    parser.add_argument('--no_aux_loss', dest='aux_loss', action='store_false',
-                        help="Disables auxiliary decoding losses (loss at each layer)")
+    parser.add_argument('--lr_drop', default=10, type=int)
     parser.add_argument('--wpa_loss', dest='wpa_loss', action='store_true',
                         help="Disables wpa losses (loss at encoder)")
     parser.add_argument('--task', default='boxseg', type=str,
                         help="box/seg/boxseg")
 
-    # parser.add_argument('--no_amp', dest='amp', action='store_false',
-    #                     help="Disables amp")
     parser.add_argument('--multi_scale', dest='multi_scale', action='store_true',
                         help="Disables multi_scale")
 
@@ -56,7 +50,7 @@ def get_args_parser():
                         help="If true, use multi-scale augmentation")
     parser.add_argument('--aug_translate', action='store_true',
                         help="If true, use random translate augmentation")
-    # ZMode
+
     # * Backbone
     parser.add_argument('--backbone', default='resnet101', type=str,
                         help="Name of the convolutional backbone to use")
@@ -67,10 +61,6 @@ def get_args_parser():
     parser.add_argument('--num_feature_levels', default=3, type=int, help='number of feature levels')
 
     # * Attention
-    parser.add_argument('--enc_layers', default=0, type=int,
-                        help='Number of encoders')
-    parser.add_argument('--dec_layers', default=6, type=int,
-                        help='Number of decoders')
     parser.add_argument('--ca_layers', default=6, type=int,
                         help='Number of decoders')
     parser.add_argument('--dim_feedforward', default=1024, type=int,
@@ -79,19 +69,11 @@ def get_args_parser():
                         help='Size of the embeddings (dimension of the igmia)')
     parser.add_argument('--dropout', default=0.1, type=float,
                         help="Dropout applied in the igmia transformer")
-    parser.add_argument('--erase', default=0.1, type=float,
-                        help="Dropout applied in the igmia transformer")
     parser.add_argument('--nheads', default=8, type=int,
                         help="Number of attention heads inside the igmia")
     parser.add_argument('--activation', default='gelu', type=str,
                         help="Number of attention heads inside the igmia")
     parser.add_argument('--pre_norm', action='store_true')
-    parser.add_argument('--dec_n_points', default=4, type=int)
-    parser.add_argument('--enc_n_points', default=4, type=int)
-
-    # * Score Module
-    parser.add_argument('--alpha', default=1.0, type=float)
-    parser.add_argument('--sigma', default=0.5, type=float)
 
     # BERT
     parser.add_argument('--bert_enc_num', default=12, type=int)
@@ -297,7 +279,7 @@ def main(args):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser('ZMod training script', parents=[get_args_parser()])
+    parser = argparse.ArgumentParser('PBREC training script', parents=[get_args_parser()])
     args = parser.parse_args()
     if args.output_dir:
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)

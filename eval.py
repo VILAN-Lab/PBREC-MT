@@ -5,6 +5,7 @@ import random
 import time
 import math
 import os
+import os.path as osp
 
 import numpy as np
 from pathlib import Path
@@ -12,6 +13,7 @@ from pathlib import Path
 import torch
 import torch.backends.cudnn as cudnn
 from torch.utils.data import DataLoader, DistributedSampler
+from utils.post_utils import post_process_bbox
 
 import datasets
 import utils.misc as utils
@@ -22,40 +24,9 @@ from engine import train_one_epoch, evaluate
 
 def get_args_parser():
     parser = argparse.ArgumentParser('Set transformer detector', add_help=False)
-    parser.add_argument('--lr', default=1e-4, type=float)
-    parser.add_argument('--lr_bert', default=1e-6, type=float)
-    parser.add_argument('--lr_visu_cnn', default=1e-6, type=float)
-    # parser.add_argument('--lr_visu_tra', default=1e-6, type=float)
-    parser.add_argument('--lr_clip', default=0, type=float)
     parser.add_argument('--batch_size', default=32, type=int)
-    parser.add_argument('--weight_decay', default=1e-4, type=float)
-    parser.add_argument('--epochs', default=90, type=int)
-    parser.add_argument('--lr_power', default=0.9, type=float, help='lr poly power')
-    parser.add_argument('--clip_max_norm', default=0., type=float,
-                        help='gradient clipping max norm')
-    parser.add_argument('--eval', dest='eval', default=False, action='store_true', help='if evaluation only')
-    parser.add_argument('--optimizer', default='adamw', type=str)
-    parser.add_argument('--lr_scheduler', default='cosine', type=str)
-    parser.add_argument('--lr_drop', default=[60, 80], type=int)
-    parser.add_argument('--no_aux_loss', dest='aux_loss', action='store_false',
-                        help="Disables auxiliary decoding losses (loss at each layer)")
-    parser.add_argument('--wpa_loss', dest='wpa_loss', action='store_true',
-                        help="Disables wpa losses (loss at encoder)")
-    parser.add_argument('--multi_scale', dest='multi_scale', action='store_true',
-                        help="Disables multi_scale")
-    parser.add_argument('--task', default='seg', type=str,
-                        help="box/seg/boxseg")
+    parser.add_argument('--eval', dest='eval', default=True, action='store_true', help='if evaluation only')
 
-    # Augmentation options
-    parser.add_argument('--aug_blur', action='store_true',
-                        help="If true, use gaussian blur augmentation")
-    parser.add_argument('--aug_crop', action='store_true',
-                        help="If true, use random crop augmentation")
-    parser.add_argument('--aug_scale', action='store_true',
-                        help="If true, use multi-scale augmentation")
-    parser.add_argument('--aug_translate', action='store_true',
-                        help="If true, use random translate augmentation")
-    # ZMode
     # * Backbone
     parser.add_argument('--backbone', default='resnet101', type=str,
                         help="Name of the convolutional backbone to use")
@@ -66,10 +37,6 @@ def get_args_parser():
     parser.add_argument('--num_feature_levels', default=3, type=int, help='number of feature levels')
 
     # * Attention
-    parser.add_argument('--enc_layers', default=0, type=int,
-                        help='Number of encoders')
-    parser.add_argument('--dec_layers', default=6, type=int,
-                        help='Number of decoders')
     parser.add_argument('--ca_layers', default=6, type=int,
                         help='Number of decoders')
     parser.add_argument('--dim_feedforward', default=1024, type=int,
@@ -78,19 +45,11 @@ def get_args_parser():
                         help='Size of the embeddings (dimension of the igmia)')
     parser.add_argument('--dropout', default=0.1, type=float,
                         help="Dropout applied in the igmia transformer")
-    parser.add_argument('--erase', default=0.1, type=float,
-                        help="Dropout applied in the igmia transformer")
     parser.add_argument('--nheads', default=8, type=int,
                         help="Number of attention heads inside the igmia")
     parser.add_argument('--activation', default='gelu', type=str,
                         help="Number of attention heads inside the igmia")
     parser.add_argument('--pre_norm', action='store_true')
-    parser.add_argument('--dec_n_points', default=4, type=int)
-    parser.add_argument('--enc_n_points', default=4, type=int)
-
-    # * Score Module
-    parser.add_argument('--alpha', default=1.0, type=float)
-    parser.add_argument('--sigma', default=0.5, type=float)
 
     # BERT
     parser.add_argument('--bert_enc_num', default=12, type=int)
@@ -119,7 +78,10 @@ def get_args_parser():
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
     parser.add_argument('--num_workers', default=8, type=int)
-
+    parser.add_argument('--task', default='seg', type=str,
+                        help="box/seg/boxseg")
+    parser.add_argument('--box_root', default='fcos_r101.pth', type=str,
+                        help="box/seg/boxseg")
 
     # distributed training parameters
     parser.add_argument('--world_size', default=1, type=int,
@@ -163,15 +125,30 @@ def main(args):
     model_without_ddp.load_state_dict(checkpoint['model'])
 
     # perform evaluation
+    start_time = time.time()
     gt_box, gt_seg, box_score, seg_score, img_mask, accuracy = evaluate(model, data_loader_test, device)
-    dict = {'gt_box': gt_box.numpy(), 'gt_seg': np.packbits(gt_seg.numpy().astype(np.bool_), axis=-1),
-            'box_score': box_score, 'seg_score': seg_score,
-            'img_mask': np.packbits(img_mask.numpy().astype(np.bool_), axis=-1)}
-    # torch.save(dict, f'./seg/{args.dataset}_{args.eval_set}.pth')
-    # print(accuracy)
+    bbox_dict = torch.load(args.box_root)
+    gt_file = '{0}_{1}.pth'.format(args.dataset, args.eval_set)
+    gt_path = osp.join(args.split_root, args.dataset, gt_file)
+    dataset_dict = torch.load(gt_path)
+
+    accuracy = post_process_bbox(dataset_dict, bbox_dict, box_score, gt_box)
+
+    if utils.is_main_process():
+        total_time = time.time() - start_time
+        total_time_str = str(datetime.timedelta(seconds=int(total_time)))
+        print('Training time {}'.format(total_time_str))
+
+        log_stats = {'test_model:': args.eval_model,
+                    '%s_set_accuracy'%args.eval_set: accuracy,
+                    }
+        print(log_stats)
+        if args.output_dir and utils.is_main_process():
+                with (output_dir / "eval_log.txt").open("a") as f:
+                    f.write(json.dumps(log_stats) + "\n")
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser('M3T evaluation script', parents=[get_args_parser()])
+    parser = argparse.ArgumentParser('PBREC evaluation script', parents=[get_args_parser()])
     args = parser.parse_args()
     if args.output_dir:
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)

@@ -145,7 +145,7 @@ class DatasetNotFoundError(Exception):
     pass
 
 
-class ZModDataset(data.Dataset):
+class PBRECDataset(data.Dataset):
     SUPPORTED_DATASETS = {
         'referit': {'splits': ('train', 'val', 'trainval', 'test')},
         'unc': {

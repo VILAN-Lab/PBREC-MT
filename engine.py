@@ -43,7 +43,7 @@ def train_one_epoch(model: torch.nn.Module, data_loader: Iterable,
         # model forward
         output = model(img_data, text_data)
 
-        loss_dict = loss_utils.zmod_loss(output, bbox_mask, mass_mask)
+        loss_dict = loss_utils.pbrec_loss(output, bbox_mask, mass_mask)
         losses = sum(loss_dict[k] for k in loss_dict.keys())
 
         # reduce losses over all GPUs for logging purposes
@@ -94,9 +94,9 @@ def validate(model: torch.nn.Module, data_loader: Iterable, device: torch.device
         
         outputs = model(img_data, text_data)
         if outputs['box_score'] is not None:
-            accu = eval_utils.zmod_eval_val(outputs['box_score'][-1], bbox_mask > 0)
+            accu = eval_utils.pbrec_eval_val(outputs['box_score'][-1], bbox_mask > 0)
         else:
-            accu = eval_utils.zmod_eval_val(outputs['seg_score'][-1], mass_mask > 0)
+            accu = eval_utils.pbrec_eval_val(outputs['seg_score'][-1], mass_mask > 0)
         # iou_value = torch.mean(iou).item()
         accu_value = accu.item()
         # metric_logger.update_v2('iou', iou_value, batch_size)
@@ -147,7 +147,7 @@ def evaluate(model: torch.nn.Module, data_loader: Iterable, device: torch.device
     gt_seg = torch.cat(gt_seg_list, dim=0).data.to(torch.bool)
     bbox_mask = torch.cat(bbox_mask_list, dim=0)
     total_num = bbox_mask.shape[0]
-    # accu_num = eval_utils.zmod_eval_test(box_score, bbox_mask > 0)
+    # accu_num = eval_utils.pbrec_eval_test(box_score, bbox_mask > 0)
     # result_tensor = torch.tensor([accu_num, total_num]).to(device)
     # accuracy = float(result_tensor[0]) / float(result_tensor[1])
     accuracy = 0

@@ -7,7 +7,7 @@ from utils.box_utils import bbox_iou, xywh2xyxy, xyxy2xywh, generalized_box_iou
 from utils.misc import get_world_size
 
 
-def zmod_loss(outputs, bbox_mask, mass_mask):
+def pbrec_loss(outputs, bbox_mask, mass_mask):
     """Compute the losses related to the bounding boxes, 
        including the L1 regression loss and the GIoU loss
     """
