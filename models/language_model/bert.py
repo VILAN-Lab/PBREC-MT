@@ -10,7 +10,6 @@ from torch import nn
 from utils.misc import NestedTensor
 
 from pytorch_pretrained_bert.modeling import BertModel
-from peft import LoraModel, LoraConfig
 
 
 class BERT(nn.Module):
@@ -23,15 +22,7 @@ class BERT(nn.Module):
         self.enc_num = enc_num
 
         # self.bert = BertModel.from_pretrained(name)
-        bert = BertModel.from_pretrained('./bert/bert-base-uncased')
-
-        config = LoraConfig(task_type="SEQ_2_SEQ_LM",
-                            r=256,
-                            lora_alpha=8,
-                            target_modules=["query", "key", "value"],
-                            lora_dropout=0.01,
-                            )
-        self.bert = LoraModel(bert, config, "default")
+        self.bert = BertModel.from_pretrained('./bert/bert-base-uncased')
 
         if not train_bert:
             for p in self.bert.parameters():

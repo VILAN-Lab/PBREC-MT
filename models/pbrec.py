@@ -5,11 +5,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from .visual_model.clip import build_clip
 from .visual_model.backbone import build_backbone
 from .language_model.bert import build_bert
 from .language_model.position_encoding import build_position_encoding
-from .score_module import build_score_module
 from .cross_attention import build_ca_layer
 from utils.misc import NestedTensor
 
@@ -28,7 +26,6 @@ class Model(nn.Module):
 
         self.ca = build_ca_layer(args, return_intermediate_dec=True)
 
-        self.aux_loss = args.aux_loss
 
         if 'box' in self.task_type:
             self.box_mlp = MLP(self.hidden_dim, self.hidden_dim, 1, 3)
@@ -70,8 +67,7 @@ class Model(nn.Module):
 
         output = {'box_score': box_score,
                   'seg_score': seg_score,
-                  'img_mask': img_mask,
-                  'aux_loss': self.aux_loss}
+                  'img_mask': img_mask}
 
         return output
 

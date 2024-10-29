@@ -137,8 +137,6 @@ def main(args):
 
     visu_cnn_param = [p for n, p in model_without_ddp.named_parameters() if
                       (("body" in n) and p.requires_grad)]
-    # visu_tra_param = [p for n, p in model_without_ddp.named_parameters() if
-    #                   (("visumodel" in n) and ("backbone" not in n) and p.requires_grad)]
     text_tra_param = [p for n, p in model_without_ddp.named_parameters() if
                       (("bert" in n) and p.requires_grad)]
     clip_parma = [p for n, p in model_without_ddp.named_parameters() if
@@ -148,8 +146,7 @@ def main(args):
 
     param_list = [{"params": rest_param},
                   {"params": visu_cnn_param, "lr": args.lr_visu_cnn},
-                  {"params": text_tra_param, "lr": args.lr_bert},
-                  {"params": clip_parma, "lr": args.lr_clip}]
+                  {"params": text_tra_param, "lr": args.lr_bert}]
 
     # using RMSProp or AdamW
     if args.optimizer == 'rmsprop':
@@ -171,11 +168,9 @@ def main(args):
     # build dataset
     dataset_train = build_dataset('train', args)
     dataset_val = build_dataset('val', args)
-    ## note certain dataset does not have 'test' set:
-    ## 'unc': {'train', 'val', 'trainval', 'testA', 'testB'}
 
     # using polynomial lr scheduler or half decay every 10 epochs or step
-    lr = [args.lr, args.lr_visu_cnn, args.lr_bert, args.lr_clip]
+    lr = [args.lr, args.lr_visu_cnn, args.lr_bert]
     if args.lr_scheduler == 'poly':
         lr_func = lambda epoch: (1 - epoch / args.epochs) ** args.lr_power
         lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_func)
