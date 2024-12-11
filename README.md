@@ -1,4 +1,4 @@
-# PBREC-MT
+# PBREC-MT AAAI-2024
 code for Rethinking Two-Stage Referring Expression Comprehension: A Novel Grounding and Segmentation Method Modulated by Point
 <p align="center"> <img src='docs/overview.jpg' align="center" height="320px"> </p>
 
